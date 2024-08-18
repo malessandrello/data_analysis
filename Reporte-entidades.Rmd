@@ -1,0 +1,618 @@
+---
+title: 'Influencia de los Factores Ambientales en el Contenido de Alcaloides del Té'
+author: "Mauricio Alessandrello"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+library(readxl)
+library(tidyverse)
+library(DescTools)
+library(insight)
+library(ggridges)
+
+datos <- read_csv(file = "Desh-te.csv", col_names = TRUE) %>% filter(Matriz == "TE - TÉ NEGRO") # LEE EL ARCHIVO CON LOS DATOS
+
+datos <- datos %>% select(Fracción, Entidad, Análisis, Resultado, `Resultado convertido`, `Unidad inicial`) %>%
+  rename(Resultado_conv = "Resultado convertido") # sELECCIONA COLUMNAS NECESARIAS Y CAMBIA NOMBRE DE RESULTADO CONVERTIDO
+
+dat1 <- datos[which(str_detect(datos$`Unidad inicial`, "x")),] # dat1: VECTOR CON DATOS EN LOS QUE LA UNIDAD INICIAL EMPIEZA CON "x".
+supin <- str_extract(dat1$`Unidad inicial`, "\\W") #supin: VECTOR CON SUPERINDICES DE DATOS DE dat1.
+pot <- as.numeric(as.factor(supin)) # TRANSFORMA LOS SUPERÍNDICES EN FACTORES Y LUEGO EN NÚMEROS
+
+dat1 <- tibble(dat1, y = pot) # cREA DATAFRAME CON COLUMNA "y" EN DONDE ESTÁN LOS FACTORES CORRESPONDIENTE A LOS SUPERINDICES 
+dat1 <- dat1 %>% mutate(Resultado = as.numeric(Resultado))
+
+dat1 <- dat1 %>% mutate(Resultado = case_when(y == 1 ~ Resultado * 100, #MULTIPLICA RESULTADO POR POTENCIA DE 10 DE ACUERDO AL FACTOR EN COLUMNA "y"
+                                              y == 2 ~ Resultado * 1000,
+                                              y == 3 ~ Resultado * 10000,
+                                              y == 4 ~ Resultado * 100000,
+                                              y == 5 ~ Resultado * 1000000,
+                                              y == 6 ~ Resultado * 10000000))
+
+datos <- datos %>% filter(!str_detect(`Unidad inicial`, "x")) # ELIMINA LOS DATOS EN LOS CUALES LA UNIDAD INICIAL EMPIECE CON "x"
+
+datos <- full_join(dat1, datos) #UNE DATAFRAMES datos CON dat1
+
+datos <- datos %>% 
+  select(Fracción, Entidad, Análisis, Resultado, Resultado_conv) #SELECCIONA LAS COLUMNAS NECESARIAS 
+
+datos[is.na(datos)] <- 0 # CONVIERTE TODO "na" EN "0"
+
+datos <- datos %>% mutate(Resultado_conv = case_when(
+  Resultado_conv == 0 ~ Resultado_conv + Resultado,
+  Resultado_conv > 0 ~ Resultado_conv)) # EN CASO DE QUE EL RESULTADO CONVERTIDO SEA 0, 
+# LA COLUMNA RESULTADO CONVERTIDO TOMA EL VALOR DE LA 
+# COLUMNA RESULTADO. SI ES MAYOR QUE 0, TOMA EL VALOR DE 
+# RESULTADO CONVERTIDO
+
+datos[datos == 0] <- NA # TRANSFORMA LOS RESULTADO CON VALOR "0" EN "na"
+
+datos <- datos %>% 
+  select(Fracción,Entidad, Análisis, Resultado_conv) %>%
+  drop_na() #sELECCIONA LAS COLUMNAS NECESARIAS Y ELIMINA LOS na
+
+datos <- pivot_wider(data = datos,
+                     names_from = Análisis,
+                     values_from = Resultado_conv) #CONVIERTE EL DATAFRAME, CADA ANÁLISIS SE CONVIERTE EN COLUMNA
+
+datos <- datos %>%mutate(Fracción = (str_replace_all(Fracción, "\\d$", "1"))) #REEMPLAZA EL ÚLTIMO DÍGITO DE LA FRACCIÓN POR "1"
+datos[is.na(datos)] <- 0 #CONVIERTE "na" EN "0"
+
+datos <- datos %>% group_by(Fracción) %>% summarise(across(1:125,sum)) # AGRUPA LAS FRACCIONES Y JUNTA AQUELLAS QUE TENGAN EL MISMO NÚMERO DE FRACCIÓN
+
+
+
+datos[datos == 0] <- NA #CONVIERTE "0" EN "NA"
+
+
+
+
+fracc2017 <- datos[which(str_detect(datos$Fracción, "^2017")),1] %>%pull
+fracc2018 <- datos[which(str_detect(datos$Fracción, "^2018")),1] %>% pull
+fracc2019 <- datos[which(str_detect(datos$Fracción, "^2019")),1] %>% pull
+fracc2020 <- datos[which(str_detect(datos$Fracción, "^2020")),1] %>% pull
+fracc2021 <- datos[which(str_detect(datos$Fracción, "^2021")),1] %>% pull
+fracc2022 <- datos[which(str_detect(datos$Fracción, "^2022")),1] %>% pull
+fracc2023 <- datos[which(str_detect(datos$Fracción, "^2023")),1] %>% pull
+fracc2024 <- datos[which(str_detect(datos$Fracción, "^2024")),1] %>% pull
+
+datos2017 <- datos %>% 
+  filter(Fracción %in% fracc2017)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2016 - 2017")) %>% drop_na()
+
+datos2018 <- datos %>% 
+  filter(Fracción %in% fracc2018)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2017 - 2018")) %>% drop_na()
+
+datos2019 <- datos %>% 
+  filter(Fracción %in% fracc2019)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2018 - 2019"))%>% drop_na()
+
+datos2020 <- datos %>% 
+  filter(Fracción %in% fracc2020)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2019 - 2020"))%>% drop_na()
+
+datos2021 <- datos %>% 
+  filter(Fracción %in% fracc2021)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2020 - 2021")) %>% drop_na()
+
+datos2022 <- datos %>% 
+  filter(Fracción %in% fracc2022)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad)%>% mutate(Campaña = factor("2021 - 2022")) %>% drop_na()
+
+
+datos2023 <- datos %>% 
+  filter(Fracción %in% fracc2023)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2022 - 2023")) %>% drop_na() 
+
+datos2024 <- datos %>% 
+  filter(Fracción %in% fracc2024)%>%
+  select(Fracción, 
+         `SACAL - SUMA DE ALCALOIDES`, Entidad) %>% mutate(Campaña = factor("2023 - 2024")) %>% drop_na() 
+
+
+
+dflist <- list(datos2018, datos2019, datos2020, datos2021, datos2022, datos2023, datos2024)
+
+datos_2018_2024 <- dflist %>% reduce(full_join) %>% mutate(Entidad = as.factor(Entidad))
+
+Entidades <- c(546, 1253, 684, 1424)
+
+metricas <- datos_2018_2024 %>% group_by(Campaña, Entidad) %>% 
+  filter(Entidad %in% Entidades) %>%
+  summarise(n = n(),
+            med = median(`SACAL - SUMA DE ALCALOIDES`),
+            "+95%CI" = as.tibble(MedianCI(`SACAL - SUMA DE ALCALOIDES`))[3,],
+            "-95%CI" = as.tibble(MedianCI(`SACAL - SUMA DE ALCALOIDES`))[2,])   
+
+
+
+
+#DATOS DE PRECIPITACIONES
+
+datos_p <- read_excel("datos.xlsx", sheet = 1)
+datos_p <- datos_p %>% rename("Enero" = "E", "Febrero" = "F", "Marzo" = "M...4", "Abril" = "A...5",
+                          "Mayo" = "M...6", "Junio" = "J...7", "Julio" = "J...8", "Agosto" = "A...9",
+                          "Septiembre" = "S", "Octubre" = "O", "Noviembre" = "N", "Diciembre" = "D") %>%
+  select(!`Total Anual`)
+
+datos_p <- pivot_longer(data = datos_p,cols= 2:13, names_to = "Mes", values_to = "Precipitaciones")
+datos_p <- datos_p %>% mutate( Mes = as_factor(Mes), Años = as.factor(Años)) 
+
+#DATOS TEMPERATURAS MÁXIMAS
+
+datos_tmax <- read_excel("datos.xlsx", sheet = 3)
+datos_tmax <- datos_tmax %>% rename("Enero" = "E", "Febrero" = "F", "Marzo" = "M...4", "Abril" = "A...5",
+                                    "Mayo" = "M...6", "Junio" = "J...7", "Julio" = "J...8", "Agosto" = "A...9",
+                                    "Septiembre" = "S", "Octubre" = "O", "Noviembre" = "N", "Diciembre" = "D")
+
+
+datos_tmax <- pivot_longer(data = datos_tmax,cols= 2:13, names_to = "Mes", values_to = "Tmax")
+datos_tmax <- datos_tmax %>% mutate( Mes = as_factor(Mes), Años = as.factor(Años)) 
+
+#DATOS TEMPERATURAS MÍNIMAS
+
+datos_tmin <- read_excel("datos.xlsx", sheet = 4)
+datos_tmin <- datos_tmin %>% rename("Enero" = "E", "Febrero" = "F", "Marzo" = "M...4", "Abril" = "A...5",
+                                    "Mayo" = "M...6", "Junio" = "J...7", "Julio" = "J...8", "Agosto" = "A...9",
+                                    "Septiembre" = "S", "Octubre" = "O", "Noviembre" = "N", "Diciembre" = "D")
+
+
+datos_tmin <- pivot_longer(data = datos_tmin,cols= 2:13, names_to = "Mes", values_to = "Tmin")
+datos_tmin <- datos_tmin %>% mutate( Mes = as_factor(Mes), Años = as.factor(Años))
+
+#DATOS TEMPERATURAS MEDIAS
+
+datos_tmed <- read_excel("datos.xlsx", sheet = 2)
+datos_tmed <- datos_tmed %>% rename("Enero" = "E", "Febrero" = "F", "Marzo" = "M...4", "Abril" = "A...5",
+                              "Mayo" = "M...6", "Junio" = "J...7", "Julio" = "J...8", "Agosto" = "A...9",
+                              "Septiembre" = "S", "Octubre" = "O", "Noviembre" = "N", "Diciembre" = "D")
+
+
+datos_tmed <- pivot_longer(data = datos_tmed,cols= 2:13, names_to = "Mes", values_to = "Tmed")
+datos_tmed <- datos_tmed %>% mutate( Mes = as_factor(Mes), Años = as.factor(Años))
+
+
+#UNION DE DATOS
+
+
+datos1 <- merge(datos_tmax, datos_tmed)
+datos2 <-merge(datos1, datos_tmin)
+
+
+
+datos_prec <- datos_p %>% mutate(periodo = paste(Años, Mes))
+
+datos2 <- datos2 %>% mutate(periodo = paste(Años, Mes))
+
+
+
+
+Campaña2017_18 <- c("2017 Septiembre", "2017 Octubre", "2017 Noviembre",
+                    "2017 Diciembre", "2018 Enero", "2018 Febrero")
+Campaña2019_20 <- c("2019 Septiembre", "2019 Octubre", "2019 Noviembre",
+                    "2019 Diciembre", "2020 Enero", "2020 Febrero")
+Campaña2020_21 <- c("2020 Septiembre", "2020 Octubre", "2020 Noviembre",
+                    "2020 Diciembre", "2021 Enero", "2021 Febrero")
+Campaña2021_22 <- c("2021 Septiembre", "2021 Octubre", "2021 Noviembre",
+                    "2021 Diciembre", "2022 Enero", "2022 Febrero")
+Campaña2022_23 <- c("2022 Septiembre", "2022 Octubre", "2022 Noviembre",
+                    "2022 Diciembre", "2023 Enero", "2023 Febrero")
+Campaña2023_24 <- c("2023 Septiembre", "2023 Octubre", "2023 Noviembre",
+                    "2023 Diciembre", "2024 Enero", "2024 Febrero")
+
+
+
+datos_prec <- datos_prec %>% mutate(Campaña = case_when(periodo %in% Campaña2017_18 ~ "2017 - 2018",
+                                                      periodo %in% Campaña2019_20 ~ "2019 - 2020",
+                                                      periodo %in% Campaña2020_21 ~ "2020 - 2021",
+                                                      periodo %in% Campaña2021_22 ~ "2021 - 2022",
+                                                      periodo %in% Campaña2022_23 ~ "2022 - 2023",
+                                                      periodo %in% Campaña2023_24 ~ "2023 - 2024"))%>%
+  drop_na()
+
+datos2 <- datos2 %>% mutate(Campaña = case_when(periodo %in% Campaña2017_18 ~ "2017 - 2018",
+                                                        periodo %in% Campaña2019_20 ~ "2019 - 2020",
+                                                        periodo %in% Campaña2020_21 ~ "2020 - 2021",
+                                                        periodo %in% Campaña2021_22 ~ "2021 - 2022",
+                                                        periodo %in% Campaña2022_23 ~ "2022 - 2023",
+                                                        periodo %in% Campaña2023_24 ~ "2023 - 2024")) %>%
+  drop_na()
+
+
+datos2 <- datos2 %>% group_by(Campaña) %>% summarise(
+  Tmax_prom = mean(Tmax),
+  Tmed_prom = mean(Tmed),
+  Tmin_prom = mean(Tmin)) %>% drop_na()
+
+
+datos_prec <- datos_prec  %>%
+  group_by(Campaña) %>% summarise(prom = mean(Precipitaciones),
+                                           sd = sd(Precipitaciones),
+                                           "+95%_CI" = prom + qt(0.975, 11) * sd/sqrt(12),
+                                           "-95%_CI" = prom - qt(0.975, 11) * sd/sqrt(12),
+                                            Acum = sum(Precipitaciones))
+
+
+
+
+datos_p_met <- full_join(datos_prec, metricas, by = "Campaña") %>% 
+  select(-sd) %>% drop_na()
+
+datos2_met <- full_join(datos2, metricas, by = "Campaña") %>% 
+  drop_na()
+
+
+
+### ENTIDADES
+
+tabla_entidades1 <- datos_2018_2024 %>% group_by( Entidad) %>% 
+  filter(Entidad %in% Entidades) %>%
+  summarise(n = n(),
+            med = median(`SACAL - SUMA DE ALCALOIDES`),
+            "+95%CI" = as.tibble(MedianCI(`SACAL - SUMA DE ALCALOIDES`))[3,],
+            "-95%CI" = as.tibble(MedianCI(`SACAL - SUMA DE ALCALOIDES`))[2,])%>% 
+  select( Entidad, n ) 
+
+tabla_entidades2 <-tibble(Entidad = factor(c(546, 684, 1253 ,1424)),
+       Proporción = c(mean(datos_2018_2024$Entidad == 546) *100,
+                      mean(datos_2018_2024$Entidad == 684)*100,
+                      mean(datos_2018_2024$Entidad == 1253)*100,
+                      mean(datos_2018_2024$Entidad == 1424)*100))
+
+tabla_entidades <- full_join(tabla_entidades1, tabla_entidades2) %>%
+  rename("n° de muestras" = n, "Proporción (%)" = Proporción)
+
+tabla_inc <- datos_2018_2024 %>% filter(Entidad %in% Entidades) %>%
+  group_by(Campaña, Entidad)%>%
+  summarise(
+            "% incumple" = mean(`SACAL - SUMA DE ALCALOIDES`>150)*100)
+
+full_data2 <- full_join(tabla_inc, datos_p_met)
+full_data3 <- full_join(tabla_inc, datos2_met)
+
+```
+---
+
+## Metodología
+
+1. Se bajaron las líneas de cuaderno desde Kalenis correspondientes a muestras de cliente con resultado aceptado de la matriz "TE NEGRO" y producto "DESH".
+2. Se seleccionaron los datos del análisis "SACAL" para cada campaña y entidad, considerando que los datos obtenidos en un año determinado correspondían a la campaña inmediatamente anterior. Por ejemplo, las muestras analizadas en 2023 corresponden a la campaña 2022-2023.
+3. Para cada campaña y entidad, se calculó el número de muestras para las cuales se realizó el análisis SACAL, la mediana de cada set de datos, su desviación absoluta e intervalos de confianza 95%. Además, se calculó la proporción de muestras que excedieron el valor de 150 µg/kg de suma de alcaloides para cada campaña y entidad.
+4. Para los datos ambientales, se trabajó con los meses de agosto a febrero del siguiente año. Por ejemplo, se consideró que las muestras analizadas en 2023 recibieron la influencia de las condiciones climáticas ocurridas durante agosto 2022 a febrero 2023.Para las analizadas en 2021, se consideró el periodo de agosto 2020 a febrero 2021 y así sucesivamente para cada campaña.
+5. Se graficaron la lluvia acumulada mensual para cada año y las temperaturas máximas, media y mínima promedio mensual para cada año.
+6. Se calculó la lluvia acumulada durante cada periodo (agosto a febrero) realizando la suma de la lluvia acumulada durante cada mes de ese periodo. Además, se calculó el promedio de las temperaturas máximas, mínimas y medias de esos periodos.
+7. Se calculó el coeficiente de correlación de Spearman entre las medianas del análisis SACAL para cada año y entidad versus la lluvia acumulada durante la campaña y versus los promedios de las temperaturas máximas, medias y mínimas de cada campaña.
+8. Se realizó el mismo calculo empleando la proporción de muestras que incumplen la especificación de cada entidad en lugar de las medianas del análisis SACAL. 
+9. Se graficaron mediana y porcentaje de incumplimiento de las muestras de cada campaña versus lluvia acumulada y promedios de temperaturas máximas, medias y mínimas.  
+
+----
+
+## Entidades seleccionadas 
+
+Se trabajó con las entidades que presentaron una proporción mayor al 5% del total de muestras de té analizadas durante el periodo 2018 - 2024. En total, representan el 96.07 % de las muestras.
+
+
+#### Tabla 1: Entidades seleccionadas, cantidad de muestras enviadas y proporción en el periodo 2018 - 2024
+
+
+```{r, echo=FALSE}
+export_table(tabla_entidades, format = "html")
+
+```
+## Gráficos de condiciones ambientales
+
+### Lluvia acumulada
+
+```{r, echo=FALSE, warning=FALSE}
+
+lluvia <- datos_p %>% ggplot(aes(Años, Mes))+
+  geom_point(aes(col = Precipitaciones, size = Precipitaciones))+
+  scale_color_gradient(low = "lightblue", high = "darkblue")+ 
+  xlab("Año")+
+  labs(size = "Precipitaciones (mm)", color = "Precipitaciones (mm)")
+lluvia
+```
+
+-----------------------
+
+### Temperaturas máximas promedio
+
+
+```{r, echo=FALSE, warning=FALSE}
+tmax <- datos_tmax %>% ggplot(aes(Años, Mes))+ 
+  geom_point(aes(col = Tmax, size = Tmax)) +
+  scale_color_gradient(low = "yellow", high = "red")+
+  xlab("Año")+
+  labs(size = "Temperatura máxima (°C)", color = "Temperatura máxima (°C)")
+tmax
+```
+
+--------------------------
+
+### Temperaturas medias promedio
+
+```{r, echo=FALSE, warning=FALSE}
+tmed <- datos_tmed %>% ggplot(aes(Años, Mes))+ 
+  geom_point(aes(col = Tmed, size = Tmed)) +
+  scale_color_gradient(low = "green", high = "yellow")+
+  xlab("Año")+
+  labs(size = "Temperatura máxima (°C)", color = "Temperatura máxima (°C)")
+tmed
+```
+
+----------------------
+
+### Temperaturas mínimas promedio
+
+```{r, echo=FALSE, warning=FALSE}
+tmin <- datos_tmin %>% ggplot(aes(Años, Mes))+ 
+  geom_point(aes(col = Tmin, size = Tmin)) +
+  scale_color_gradient(low = "blue", high = "green")+
+  xlab("Año")+
+  labs(size = "Temperatura máxima (°C)", color = "Temperatura máxima (°C)")
+tmin
+```
+
+------------------
+
+## Gráficos de contenido de alcaloides en muestras analizadas
+
+### Contenido de alcaloides en muestras por campaña y entidad
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12}
+
+cajas <- datos_2018_2024 %>% filter(Entidad %in% Entidades) %>%
+  ggplot(aes(Entidad, `SACAL - SUMA DE ALCALOIDES`, fill = Entidad)) + geom_boxplot() + 
+  scale_y_continuous(trans = "log10") + ylab("Alcaloides (µg/kg)")+ geom_jitter(alpha = 0.1)+
+  geom_hline(yintercept = 150, color = "red") + 
+  facet_grid( ~ Campaña )
+
+cajas
+
+ridge <- datos_2018_2024 %>% filter(Entidad %in% Entidades) %>%
+  ggplot(aes(x = `SACAL - SUMA DE ALCALOIDES`, y = Entidad, fill = Entidad))+
+  geom_density_ridges() + scale_x_continuous(trans = "log10") + 
+  geom_vline(xintercept =  150, col = "red")+
+  xlab("Alcaloides (µg/kg)")+
+  facet_grid(~ Campaña) 
+
+ridge
+
+df <- full_data2 %>%
+    mutate(Año = case_when(Campaña == "2017 - 2018" ~ 2018,
+                       Campaña == "2019 - 2020" ~ 2020,
+                       Campaña == "2020 - 2021" ~ 2021,
+                       Campaña == "2021 - 2022"~2022,
+                       Campaña == "2022 - 2023" ~ 2023,
+                       Campaña == "2023 - 2024"~2024))
+lineas <- df %>% 
+  ggplot(aes(Año, med, col = Entidad))+
+  geom_line(size = 1.5) + ylab("Alcaloides (µg/kg)(mediana)")+
+  geom_hline(yintercept = 150, color = "red")+ 
+  annotate("text", x=2018.5, y=170, label="150 µg/kg", angle=0)
+  
+lineas
+
+```
+
+-------------------------------------
+
+## Tablas
+
+#### Tabla 1: Mediana de suma de alcaloides y lluvia acumulada para cada campaña y entidad. 
+
+```{r, echo=FALSE}
+tabla1 <- full_data2 %>%
+  select(Campaña, Entidad, n, med, `+95%CI` , `-95%CI`, Acum ) %>%
+  rename("Mediana Alcaloides" = med, "Lluvia acumulada (mm)" = Acum,
+        "n° de muestras" = n)
+
+export_table(tabla1, format = "html")
+
+```
+
+-------------------
+
+#### Tabla 2: Proporción de muestras que incumplieron especificación y lluvia acumulada para cada campaña.
+
+
+```{r, echo=FALSE}
+tabla2 <- full_data2 %>%
+  select(Campaña,Entidad, n, `% incumple`, Acum) %>%
+  rename("Proporción incumple (%)" = `% incumple`, "Lluvia acumulada (mm)" = Acum,
+         "n° de muestras" = n)
+
+export_table(tabla2, format = "html")
+
+```
+
+---------------------------------------------
+
+#### Tabla 3: Proporción de muestras que incumplieron especificación y temperaturas promedio.  
+
+```{r, echo=FALSE}
+tabla3 <- full_data3 %>%
+  select(Campaña,Entidad, n, `% incumple`, Tmax_prom, Tmed_prom, Tmin_prom) %>%
+  rename("Proporción incumple (%)" = `% incumple`, "Tmax" = Tmax_prom,"Tmed" = Tmed_prom, "Tmin" = Tmin_prom)
+
+export_table(tabla3, format = "html")
+```
+
+---------------------------------------------
+
+#### Tabla 4: Mediana de suma de alcaloides y temperaturas promedio.
+
+```{r, echo=FALSE}
+tabla4 <- full_data3 %>%
+  select(Campaña,Entidad, n, med, Tmax_prom, Tmed_prom, Tmin_prom, ) %>%
+  rename("Mediana alcaloides" = med, "Tmax" = Tmax_prom,
+         "Tmed" = Tmed_prom, "Tmin" = Tmin_prom)
+export_table(tabla4, format = "html")
+```
+
+------------------------------
+
+#### Tabla 5: Correlación (Spearman) entre las distintas variables climáticas y el contenido de alcaloides
+
+```{r, echo=FALSE, message=FALSE}
+full_data4 <- full_join(full_data2, full_data3)
+
+tabla_corr <- full_data4 %>% 
+  group_by(Entidad) %>% 
+  summarise("Lluvia - Mediana alcaloides" = cor(Acum, med, method = "spearman"),
+            "Lluvia - % incumple" = cor(Acum, `% incumple`, method = "spearman"),
+            "Tmin - Mediana alcaloides" = cor(Tmin_prom, med, method = "spearman"),
+            "Tmed - Mediana alcaloides" = cor(Tmed_prom, med, method = "spearman"),
+            "Tmax - Mediana alcaloides" = cor(Tmax_prom, med, method = "spearman"),
+            "Tmin - % incumple" = cor(Tmin_prom, `% incumple`, method = "spearman"),
+            "Tmed - % incumple" = cor(Tmed_prom, `% incumple`, method = "spearman"),
+            "Tmax - % incumple" = cor(Tmax_prom, `% incumple`, method = "spearman"))
+
+export_table(tabla_corr, format = "html")
+```
+
+------------------------------------
+
+### Gráficos correlaciones
+
+
+-------------------------------------
+
+#### Proporción de muestras que incumplen especificación versus lluvia acumulada
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig1 <- full_data4 %>% ggplot(aes(Acum, `% incumple`), col = Campaña) + 
+  geom_point(aes(col = Campaña), size = 2) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Lluvia acumulada (mm)") + ylab("Proporción de muestras que incumplen (%)")+
+  facet_grid(~Entidad)
+
+fig1
+```
+
+-------------------------------
+
+#### Mediana del contenido de alcaloides versus lluvia acumulada
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig2 <- full_data4 %>% ggplot(aes(Acum, med), col = Campaña) + 
+  geom_point(aes(col = Campaña), size = 2) +
+  geom_smooth(method = "lm", se = FALSE) +
+  xlab("Lluvia acumulada (mm)") + ylab("Mediana alcaloides (µg/kg)")+
+  facet_grid(~Entidad)
+
+fig2
+```
+
+-----------------------
+
+#### Proporción de muestras que incumplen especificación versus temperatura mínima promedio
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig3 <- full_data4 %>% ggplot(aes(Tmin_prom, `% incumple`), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura mínima promedio (°C)") + ylab("Proporción de muestras que incumplen (%)")+
+  facet_grid(~ Entidad)
+
+fig3
+```
+
+-----------------------------
+
+#### Mediana del contenido de alcaloides versus temperatura mínima promedio
+
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+
+fig4 <- full_data4 %>% ggplot(aes(Tmin_prom, med), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura mínima promedio (°C)") + ylab("Mediana alcaloides (µg/kg)")+
+  facet_grid(~ Entidad)
+
+fig4
+```
+
+----
+
+#### Proporción de muestras que incumplen especificación versus temperatura media promedio
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig5 <- full_data4 %>% ggplot(aes(Tmed_prom, `% incumple`), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura media promedio (°C)") + ylab("Proporción de muestras que incumplen (%)")+
+  facet_grid(~ Entidad)
+fig5
+```
+
+---
+
+#### Mediana del contenido de alcaloides versus temperatura media promedio
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig6 <- full_data4 %>% ggplot(aes(Tmed_prom, med), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura media promedio (°C)") + ylab("Mediana alcaloides (µg/kg)")+
+  facet_grid(~ Entidad)
+fig6
+
+```
+
+---
+
+#### Proporción de muestras que incumplen especificación versus temperatura máxima promedio
+
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+
+fig7 <- full_data4 %>% ggplot(aes(Tmax_prom, `% incumple`), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura máxima promedio (°C)") + ylab("Proporción de muestras que incumplen (%)")+
+  facet_grid(~ Entidad)
+fig7
+
+```
+
+---
+
+#### Mediana del contenido de alcaloides versus temperatura máxima promedio
+
+```{r, echo=FALSE, message=FALSE, fig.width=12}
+fig7 <- full_data4 %>% ggplot(aes(Tmax_prom, med), col = Campaña)+ 
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(aes(col = Campaña), size = 2) + 
+  xlab("Temperatura máxima promedio (°C)") + ylab("Mediana alcaloides (µg/kg)")+
+  facet_grid(~ Entidad)
+fig7
+
+```
+
+
+
+
+----------------------
+
+## Conclusiones
+
+* En general, eventos de escasas lluvias, temperaturas máximas altas y mínimas bajas durante el periodo de agosto a febrero están asociados a mayor concentración de alcaloides en el té.
+
+* La entidad 546 sufrió las condiciones ambientales con mayor intensidad que las demás entidades.
+
+* Asociación no es causalidad. Si bien los datos indicarían que las lluvias escasas aumentan la concentración de alcaloides en las muestras de té, hacen falta ensayos a escala laboratorio en condiciones controladas para corroborar esta aseveración.
